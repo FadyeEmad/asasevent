@@ -58,6 +58,7 @@ async function verify() {
   try {
     global.fetch = async (_, options) => ({ ok: true, json: async () => run(JSON.parse(options.body)) });
     res = response(); await slots({ method: 'GET' }, res); assert.equal(res.data['1-2'], 6);
+    assert.equal(res.data['12-1'], undefined);
     res = response(); await register({ method: 'POST', body: registration }, res); assert.equal(res.statusCode, 409);
     res = response(); await register({ method: 'POST', body: { ...registration, slot: '2-3' } }, res); assert.equal(res.statusCode, 409);
     res = response(); await register({ method: 'POST', body: { ...registration, name: '', phone: '01500000000', slot: '2-3' } }, res); assert.equal(res.statusCode, 201);

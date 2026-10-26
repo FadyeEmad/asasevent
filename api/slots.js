@@ -11,5 +11,5 @@ module.exports = async function handler(req, res) {
     return reply(res, { ok: false, code: "sheets_unavailable" });
   }
   res.setHeader("Cache-Control", "no-store");
-  return res.status(200).json(result.counts);
+  return res.status(200).json(Object.fromEntries(SLOT_VALUES.map(slot => [slot, result.counts[slot]])));
 };
