@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "api/register.js": { "maxDuration": 60 },
+    "api/slots.js": { "maxDuration": 60 }
+  }
+}
