@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
   const phone = typeof body?.phone === "string" ? body.phone : "";
   const unitType = body?.unitType;
   const slot = body?.slot;
-  if (name.length < 3 || name.length > 120 || !/^01[0125]\d{8}$/.test(phone) ||
+  if (name.length > 120 || !/^01[0125]\d{8}$/.test(phone) ||
       !["residential", "commercial"].includes(unitType) || !SLOT_VALUES.includes(slot)) {
     return reply(res, { ok: false, code: "invalid_data" });
   }

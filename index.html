@@ -137,9 +137,9 @@ fieldset#f-unit{margin-bottom:20px}
 .chip small{font-size:.72rem;font-weight:400;color:var(--muted)}
 .chip.low small{color:#C98A00}
 .chip input:checked+span small{color:var(--gold-l)}
-.chip.full span{opacity:.55;cursor:not-allowed;background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(127,127,127,.14) 6px 12px)}
+.chip.full span{cursor:not-allowed;color:var(--muted);border-style:dashed;background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(127,127,127,.18) 6px 12px)}
 .chip.full:hover span{border-color:var(--line)}
-.chip.full small{color:var(--err);font-weight:600}
+.chip.full small{color:var(--err);font-weight:800}
 .chip small:empty{display:none}
 /* Keep the full form visible on laptop screens. */
 @media (min-width:900px) and (max-height:850px){
@@ -221,15 +221,15 @@ fieldset#f-unit{margin-bottom:20px}
     <div class="card" id="card">
       <div class="head">
         <h2>بيانات الحضور</h2>
-        <p class="hint">اكتب اسمك ورقمك واختر الموعد.</p>
+        <p class="hint">املأ البيانات واختر الموعد المناسب.</p>
         <div class="prog" aria-hidden="true"><i id="pbar"></i></div>
       </div>
 
       <form id="form" novalidate>
         <div class="fld" id="f-name">
-          <input id="name" name="name" type="text" autocomplete="name" enterkeyhint="next" placeholder=" ">
+          <input id="name" name="name" type="text" autocomplete="name" enterkeyhint="next" placeholder=" " maxlength="120">
           <label for="name">الاسم الكامل</label>
-          <p class="err">اكتب اسمك الكامل (3 حروف على الأقل).</p>
+          <p class="err">الاسم أطول من الحد المسموح.</p>
         </div>
         <div class="fld" id="f-phone">
           <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="done" placeholder=" " maxlength="14">
@@ -315,15 +315,21 @@ async function send(d){
 
 /* ---------- Slot availability ---------- */
 function renderSlots(c){
+  if(go.classList.contains("load") || $("card").classList.contains("done")) return;
   let full = 0;
   document.querySelectorAll(".chip").forEach(ch => {
     const inp = ch.querySelector("input"), left = Math.max(0, MAX - (c[inp.value] || 0)), isFull = left === 0;
     inp.disabled = isFull; ch.classList.toggle("full", isFull); ch.classList.toggle("low", !isFull && left <= 2);
     if(isFull){ full++; if(inp.checked){ inp.checked = false; progress(); } }
-    ch.querySelector("small").textContent = isFull ? "اكتمل" : "";
+    ch.querySelector("small").textContent = isFull ? "مكتمل" : "";
+    ch.title = isFull ? "الموعد مكتمل، لا توجد أماكن متاحة" : "";
+    inp.setAttribute("aria-label", ch.querySelector("b").textContent + (isFull ? "، مكتمل" : ""));
   });
   if(full === document.querySelectorAll(".chip").length){
     $("ferr").textContent = "للأسف اكتمل التسجيل في كل المواعيد."; $("ferr").style.display = "block"; go.disabled = true;
+  }else if(!go.classList.contains("load") && !$("card").classList.contains("done")){
+    go.disabled = false;
+    if($("ferr").textContent === "للأسف اكتمل التسجيل في كل المواعيد.") $("ferr").style.display = "none";
   }
 }
 async function loadCounts(){ try{ renderSlots(await getCounts()); }catch(_){ /* server still validates on submit */ } }
@@ -338,12 +344,12 @@ const picked = n => (document.querySelector('input[name="' + n + '"]:checked') |
 function validate(){
   document.querySelectorAll(".err").forEach(e => { e.textContent = e.dataset.d; });
   const name = $("name").value.trim(), phone = cleanPhone($("phone").value), unit = picked("unit"), slot = picked("slot");
-  const ok = [mark("f-name", name.length < 3), mark("f-phone", !/^01[0125]\d{8}$/.test(phone)), mark("f-unit", !unit), mark("f-slot", !slot)];
+  const ok = [mark("f-name", name.length > 120), mark("f-phone", !/^01[0125]\d{8}$/.test(phone)), mark("f-unit", !unit), mark("f-slot", !slot)];
   return ok.every(Boolean) ? { name, phone, unitType: unit, slot } : null;
 }
 function progress(){
-  const n = $("name").value.trim().length >= 3, p = /^01[0125]\d{8}$/.test(cleanPhone($("phone").value));
-  $("pbar").style.width = (((n ? 1 : 0) + (p ? 1 : 0) + (picked("unit") ? 1 : 0) + (picked("slot") ? 1 : 0)) / 4 * 100) + "%";
+  const p = /^01[0125]\d{8}$/.test(cleanPhone($("phone").value));
+  $("pbar").style.width = (((p ? 1 : 0) + (picked("unit") ? 1 : 0) + (picked("slot") ? 1 : 0)) / 3 * 100) + "%";
 }
 $("name").addEventListener("input", () => $("f-name").classList.remove("bad"));
 $("phone").addEventListener("input", () => $("f-phone").classList.remove("bad"));
@@ -391,13 +397,14 @@ $("form").addEventListener("submit", async e => {
   }catch(err){
     go.disabled = false; go.classList.remove("load"); $("gt").textContent = "تأكيد التسجيل";
     if(err && err.code === "slot_full"){ fail("f-slot", "الموعد ده اكتمل، اختار موعد تاني."); loadCounts(); }
-    else if(err && err.code === "duplicate_phone") fail("f-phone", "الرقم ده مسجل قبل كده في الموعد ده.");
+    else if(err && err.code === "duplicate_phone") fail("f-phone", "الرقم ده مسجل قبل كده. مسموح بحجز واحد فقط لكل رقم موبايل.");
     else { $("ferr").textContent = err && err.code === "not_configured" ? "التسجيل غير متاح حاليًا. حاول لاحقًا." : "تعذر تأكيد حفظ التسجيل. حاول مرة تانية؛ لو ظهر إن الرقم مسجل، فالتسجيل السابق وصل."; $("ferr").style.display = "block"; }
   }
 });
 
 function success(d){
   $("t-name").textContent = d.name;
+  $("t-name").parentElement.style.display = d.name ? "" : "none";
   $("t-phone").textContent = d.phone;
   $("t-unit").textContent = UNIT_AR[d.unitType];
   $("t-slot").textContent = "31 أكتوبر، " + document.querySelector('input[name="slot"]:checked').parentElement.querySelector("b").textContent;
@@ -413,6 +420,12 @@ function success(d){
   if(anim) gsap.to("#form,.head", { opacity: 0, y: -10, duration: .3, onComplete: show }); else show();
 }
 loadCounts();
+function refreshAvailability(){
+  if(!document.hidden && !go.classList.contains("load") && !$("card").classList.contains("done")) loadCounts();
+}
+setInterval(refreshAvailability, 30000);
+window.addEventListener("focus", refreshAvailability);
+document.addEventListener("visibilitychange", refreshAvailability);
 
 /* ---------- Motion ---------- */
 if(anim){

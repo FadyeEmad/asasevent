@@ -37,14 +37,14 @@ function doPost(e) {
   const secret = PropertiesService.getScriptProperties().getProperty('REGISTRATION_SECRET');
   if (!secret || data.secret !== secret) return json_({ ok: false, code: 'not_authorized' });
   const name = typeof data.name === 'string' ? data.name.trim() : '';
-  if (data.action !== 'register' || name.length < 3 || name.length > 120 ||
+  if (data.action !== 'register' || name.length > 120 ||
       !/^01[0125]\d{8}$/.test(data.phone || '') || !SLOTS.includes(data.slot) ||
       !['residential', 'commercial'].includes(data.unitType)) return json_({ ok: false, code: 'invalid_data' });
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return json_({ ok: false, code: 'sheets_unavailable' });
   try {
     const rows = rows_();
-    if (rows.some(row => row[2] === data.phone && row[4] === data.slot)) return json_({ ok: false, code: 'duplicate_phone' });
+    if (rows.some(row => row[2] === data.phone && SLOTS.includes(row[4]))) return json_({ ok: false, code: 'duplicate_phone' });
     if (counts_(rows)[data.slot] >= 6) return json_({ ok: false, code: 'slot_full' });
     const sheet = setup();
     const row = sheet.getLastRow() + 1;
