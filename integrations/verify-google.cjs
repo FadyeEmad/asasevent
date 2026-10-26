@@ -14,29 +14,34 @@ const context = vm.createContext({
   ContentService: { MimeType: { JSON: 'application/json' }, createTextOutput: text => ({ setMimeType: () => JSON.parse(text) }) }
 });
 vm.runInContext(fs.readFileSync(require.resolve('./google-sheets.gs'), 'utf8'), context);
-const registration = { action: 'register', name: 'تسجيل اختبار', phone: '01000000000', unitType: 'residential', slot: '12-1' };
+const registration = { action: 'register', name: 'تسجيل اختبار', phone: '01000000000', unitType: 'residential', slot: '1-2' };
 const run = data => context.doPost({ postData: { contents: JSON.stringify({ secret, ...data }) } });
 async function verify() {
-  assert.equal(run({ action: 'slots' }).counts['12-1'], 0);
+  assert.equal(run({ action: 'slots' }).counts['1-2'], 0);
+  assert.equal(run({ action: 'slots' }).counts['12-1'], undefined);
+  assert.equal(run({ ...registration, slot: '12-1' }).code, 'invalid_data');
   assert.equal(run({ ...registration, secret: 'wrong' }).code, 'not_authorized');
   assert.equal(rows.length, 0);
   assert.equal(run(registration).ok, true);
   assert.equal(rows[0][2], '01000000000');
   assert.equal(run(registration).code, 'duplicate_phone');
-  assert.equal(run({ ...registration, slot: '1-2' }).code, 'duplicate_phone');
+  assert.equal(run({ ...registration, slot: '2-3' }).code, 'duplicate_phone');
   for (let i = 1; i < 6; i++) assert.equal(run({ ...registration, phone: `0100000000${i}` }).ok, true);
   assert.equal(run({ ...registration, phone: '01000000006' }).code, 'slot_full');
   assert.equal(run({ ...registration, slot: 'other' }).code, 'invalid_data');
   assert.equal(run({ ...registration, phone: 'bad' }).code, 'invalid_data');
-  assert.equal(run({ ...registration, phone: '01100000000', slot: '1-2', name: '=1+1' }).ok, true);
+  assert.equal(run({ ...registration, phone: '01100000000', slot: '2-3', name: '=1+1' }).ok, true);
   assert.equal(rows[6][1], "'=1+1");
-  assert.equal(run({ ...registration, phone: '01200000000', slot: '1-2', name: '' }).ok, true);
+  assert.equal(rows[6][5], '2 – 3 عصراً');
+  assert.equal(run({ ...registration, phone: '01200000000', slot: '2-3', name: '' }).ok, true);
   assert.equal(rows[7][1], '');
   assert.equal(run({ ...registration, phone: '01200000000', slot: '3-4', name: '' }).code, 'duplicate_phone');
   locked = true;
   assert.equal(run({ ...registration, slot: '2-3' }).code, 'sheets_unavailable');
   locked = false;
   assert.ok(releases >= 9);
+  rows.push(['', 'حجز قديم', '01199999999', 'سكني', '12-1', '12 – 1 ظهراً']);
+  assert.equal(run({ ...registration, phone: '01199999999', slot: '3-4' }).code, 'duplicate_phone');
   const register = require('../api/register.js');
   const slots = require('../api/slots.js');
   const response = () => ({ setHeader() {}, status(s) { this.statusCode = s; return this; }, json(data) { this.data = data; return this; } });
@@ -46,11 +51,13 @@ async function verify() {
   assert.equal(res.statusCode, 503); assert.equal(res.data.code, 'not_configured');
   res = response(); await register({ method: 'POST', body: { ...registration, phone: 'bad' } }, res);
   assert.equal(res.statusCode, 400);
+  res = response(); await register({ method: 'POST', body: { ...registration, slot: '12-1' } }, res);
+  assert.equal(res.statusCode, 400);
   res = response(); await register({ method: 'GET' }, res); assert.equal(res.statusCode, 405);
   process.env.GOOGLE_SCRIPT_URL = 'https://example.invalid/test-only'; process.env.REGISTRATION_SECRET = secret;
   try {
     global.fetch = async (_, options) => ({ ok: true, json: async () => run(JSON.parse(options.body)) });
-    res = response(); await slots({ method: 'GET' }, res); assert.equal(res.data['12-1'], 6);
+    res = response(); await slots({ method: 'GET' }, res); assert.equal(res.data['1-2'], 6);
     res = response(); await register({ method: 'POST', body: registration }, res); assert.equal(res.statusCode, 409);
     res = response(); await register({ method: 'POST', body: { ...registration, slot: '2-3' } }, res); assert.equal(res.statusCode, 409);
     res = response(); await register({ method: 'POST', body: { ...registration, name: '', phone: '01500000000', slot: '2-3' } }, res); assert.equal(res.statusCode, 201);

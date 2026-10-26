@@ -1,4 +1,4 @@
-const SLOT_VALUES = ["12-1", "1-2", "2-3", "3-4", "4-5", "5-6"];
+const SLOT_VALUES = ["1-2", "2-3", "3-4", "4-5", "5-6"];
 
 async function callSheets(payload) {
   const url = process.env.GOOGLE_SCRIPT_URL;

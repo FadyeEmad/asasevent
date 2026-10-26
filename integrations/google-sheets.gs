@@ -1,7 +1,7 @@
 const SPREADSHEET_ID = '1cXvtHo0-Ao0btfnmas0cW0_7rcOXvqbV2T9FBdQF2KI';
 const SHEET_NAME = 'تسجيلات الفعالية';
-const SLOTS = ['12-1', '1-2', '2-3', '3-4', '4-5', '5-6'];
-const LABELS = ['12 – 1 ظهراً', '1 – 2 ظهراً', '2 – 3 عصراً', '3 – 4 عصراً', '4 – 5 مساءً', '5 – 6 مساءً'];
+const SLOTS = ['1-2', '2-3', '3-4', '4-5', '5-6'];
+const LABELS = ['1 – 2 ظهراً', '2 – 3 عصراً', '3 – 4 عصراً', '4 – 5 مساءً', '5 – 6 مساءً'];
 
 function setup() {
   const book = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -44,7 +44,7 @@ function doPost(e) {
   if (!lock.tryLock(20000)) return json_({ ok: false, code: 'sheets_unavailable' });
   try {
     const rows = rows_();
-    if (rows.some(row => row[2] === data.phone && SLOTS.includes(row[4]))) return json_({ ok: false, code: 'duplicate_phone' });
+    if (rows.some(row => row[2] === data.phone && (SLOTS.includes(row[4]) || row[4] === '12-1'))) return json_({ ok: false, code: 'duplicate_phone' });
     if (counts_(rows)[data.slot] >= 6) return json_({ ok: false, code: 'slot_full' });
     const sheet = setup();
     const row = sheet.getLastRow() + 1;
